@@ -282,6 +282,7 @@ export class AgentPanel {
   <div class="tab" onclick="switchTab('evolve')">🧬 Evolution</div>
   <div class="tab" onclick="switchTab('models')">🤖 Models</div>
   <div class="tab" onclick="switchTab('log')">📋 Log</div>
+  <div class="tab" onclick="switchTab('about')">ℹ About</div>
 </div>
 
 <!-- FORGE TAB -->
@@ -380,6 +381,73 @@ export class AgentPanel {
   <div id="recommendedModels" style="display:flex;flex-direction:column;gap:6px"></div>
 </div>
 
+<!-- ABOUT TAB -->
+<div class="panel" id="panel-about">
+  <div style="text-align:center;padding:20px 0">
+    <div style="font-size:48px">⚡</div>
+    <h2 style="background:linear-gradient(90deg,#58a6ff,#bc8cff);-webkit-background-clip:text;-webkit-text-fill-color:transparent;font-size:24px;margin:8px 0">AutoForge AI</h2>
+    <p style="color:#8b949e;font-size:13px">Autonomous local AI software engineer</p>
+    <p style="color:#8b949e;font-size:12px;margin-top:4px">v1.0.0 · Powered by Ollama · 100% Local</p>
+  </div>
+
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px">
+    <div style="font-size:13px;font-weight:700;color:#ffa657;margin-bottom:10px">👤 Developer</div>
+    <div style="display:flex;flex-direction:column;gap:8px">
+      <div style="display:flex;align-items:center;gap:10px">
+        <span style="font-size:20px">🧑‍💻</span>
+        <div>
+          <div style="font-size:14px;font-weight:700;color:#e6edf3">Ali Badloo</div>
+          <div style="font-size:11px;color:#8b949e">Software Engineer · Industrial Automation · AI/LLM</div>
+        </div>
+      </div>
+      <a href="https://github.com/alibadlu2020" style="display:flex;align-items:center;gap:8px;color:#58a6ff;text-decoration:none;font-size:13px;padding:6px 10px;background:#0d1117;border-radius:6px;border:1px solid #30363d">
+        <span style="font-size:16px">🐙</span> github.com/alibadlu2020
+      </a>
+      <a href="https://instagram.com/alibadlu2020" style="display:flex;align-items:center;gap:8px;color:#e1306c;text-decoration:none;font-size:13px;padding:6px 10px;background:#0d1117;border-radius:6px;border:1px solid #30363d">
+        <span style="font-size:16px">📸</span> instagram.com/alibadlu2020
+      </a>
+    </div>
+  </div>
+
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px">
+    <div style="font-size:13px;font-weight:700;color:#ffa657;margin-bottom:10px">💻 Recommended Coder Models</div>
+    <p style="color:#8b949e;font-size:12px;margin-bottom:10px">For best code generation, install one of these models:</p>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      <div style="background:#0d1117;border-radius:6px;padding:10px;border-left:3px solid #3fb950">
+        <div style="font-size:13px;font-weight:600;color:#e6edf3;font-family:monospace">qwen2.5-coder:7b</div>
+        <div style="font-size:11px;color:#8b949e;margin-top:2px">4-8 GB VRAM · ★★★ Excellent — Best choice for most GPUs</div>
+        <div style="margin-top:6px"><button class="btn btn-primary btn-sm" onclick="installRecommended('qwen2.5-coder:7b')">⬇ Install</button></div>
+      </div>
+      <div style="background:#0d1117;border-radius:6px;padding:10px;border-left:3px solid #58a6ff">
+        <div style="font-size:13px;font-weight:600;color:#e6edf3;font-family:monospace">qwen2.5-coder:14b</div>
+        <div style="font-size:11px;color:#8b949e;margin-top:2px">8-12 GB VRAM · ★★★★ Best quality for mid-range GPUs</div>
+        <div style="margin-top:6px"><button class="btn btn-primary btn-sm" onclick="installRecommended('qwen2.5-coder:14b')">⬇ Install</button></div>
+      </div>
+      <div style="background:#0d1117;border-radius:6px;padding:10px;border-left:3px solid #bc8cff">
+        <div style="font-size:13px;font-weight:600;color:#e6edf3;font-family:monospace">qwen2.5-coder:32b</div>
+        <div style="font-size:11px;color:#8b949e;margin-top:2px">20+ GB VRAM · ★★★★★ Top quality</div>
+        <div style="margin-top:6px"><button class="btn btn-primary btn-sm" onclick="installRecommended('qwen2.5-coder:32b')">⬇ Install</button></div>
+      </div>
+    </div>
+  </div>
+
+  <div style="background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px">
+    <div style="font-size:13px;font-weight:700;color:#ffa657;margin-bottom:8px">🤖 8 Specialized Agents</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px">
+      <div style="padding:6px;background:#0d1117;border-radius:4px"><b style="color:#58a6ff">Architect</b><br><span style="color:#8b949e">designs architecture</span></div>
+      <div style="padding:6px;background:#0d1117;border-radius:4px"><b style="color:#58a6ff">Backend</b><br><span style="color:#8b949e">generates API code</span></div>
+      <div style="padding:6px;background:#0d1117;border-radius:4px"><b style="color:#58a6ff">Frontend</b><br><span style="color:#8b949e">builds UI components</span></div>
+      <div style="padding:6px;background:#0d1117;border-radius:4px"><b style="color:#58a6ff">Database</b><br><span style="color:#8b949e">SQL + migrations</span></div>
+      <div style="padding:6px;background:#0d1117;border-radius:4px"><b style="color:#58a6ff">Debug</b><br><span style="color:#8b949e">build → fix loop</span></div>
+      <div style="padding:6px;background:#0d1117;border-radius:4px"><b style="color:#58a6ff">Documentation</b><br><span style="color:#8b949e">README + API docs</span></div>
+      <div style="padding:6px;background:#0d1117;border-radius:4px"><b style="color:#58a6ff">Git</b><br><span style="color:#8b949e">init + commit</span></div>
+      <div style="padding:6px;background:#0d1117;border-radius:4px"><b style="color:#58a6ff">Evolution</b><br><span style="color:#8b949e">nightly code review</span></div>
+    </div>
+  </div>
+
+  <div style="text-align:center;color:#30363d;font-size:11px;padding:8px">MIT License · github.com/alibadlu2020/AutoForgeAI</div>
+</div>
+
 <div class="status-bar">
   <span class="status-dot" id="statusDot" style="background:#8b949e"></span>
   <span id="statusText">Connecting…</span>
@@ -389,7 +457,7 @@ export class AgentPanel {
 const vscode = acquireVsCodeApi();
 let activeLog = document.getElementById('forgeLog');
 
-const TABS = ['forge','debug','evolve','models','log'];
+const TABS = ['forge','debug','evolve','models','log','about'];
 
 function switchTab(tab) {
   document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
@@ -455,6 +523,17 @@ function pullModel(name, btnEl) {
 function deleteModel(name) {
   if (!confirm('Delete model ' + name + '?')) return;
   vscode.postMessage({ command: 'deleteModel', payload: { name } });
+}
+
+function installRecommended(name) {
+  switchTab('models');
+  setTimeout(() => {
+    const btnId = 'btn-' + name.replace(/[:.]/g, '_');
+    const btn = document.getElementById(btnId);
+    if (btn) { pullModel(name, btn); } else {
+      vscode.postMessage({ command: 'pullModel', payload: { name } });
+    }
+  }, 300);
 }
 
 function renderModelTab(data) {

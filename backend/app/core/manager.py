@@ -67,8 +67,24 @@ async def forge(request: ForgeRequest) -> AsyncIterator[str]:
                 pass
 
     if not plan:
-        yield _sse(EventType.FORGE_ERROR, "orchestrator", "Architecture plan not received — aborting")
-        return
+        if AgentName.ARCHITECT not in enabled:
+            # Architect was skipped — build a minimal plan from the request
+            from ..agents.architect import _build_fallback_plan
+            plan = _build_fallback_plan(request.prompt, request.tech_stack or {}, request.rules or [])
+            yield _sse(EventType.LOG, "orchestrator", f"Using auto-plan: {plan['project_name']}")
+            await memory.save(project_path, {
+                "name": plan["project_name"],
+                "description": plan["description"],
+                "tech_stack": plan["tech_stack"],
+                "architecture": plan["architecture_pattern"],
+                "decisions": plan["decisions"],
+                "rules": plan["rules"],
+                "todo": [],
+                "files": [],
+            })
+        else:
+            yield _sse(EventType.FORGE_ERROR, "orchestrator", "Architecture plan not received — aborting")
+            return
 
     yield _sse(EventType.LOG, "orchestrator", f"Plan ready: {plan.get('project_name')}")
 

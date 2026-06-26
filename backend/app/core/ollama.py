@@ -180,4 +180,20 @@ def extract_files(text: str) -> list[tuple[str, str]]:
         if content:
             files.append((current_path, content))
 
-    return files
+    # Strip trailing markdown fences and LLM explanatory text from each file
+    cleaned: list[tuple[str, str]] = []
+    for path, content in files:
+        # Remove opening ``` fence if present
+        if content.startswith("```"):
+            first_nl = content.find("\n")
+            if first_nl != -1:
+                content = content[first_nl + 1:]
+        # Remove closing ``` fence and any text after it
+        last_fence = content.rfind("```")
+        if last_fence != -1:
+            content = content[:last_fence].rstrip()
+        content = content.strip()
+        if content and len(content) > 20:
+            cleaned.append((path, content))
+
+    return cleaned

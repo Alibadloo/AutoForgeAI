@@ -187,18 +187,21 @@ async def get_context(project_path: str):
 # ── Ollama / Model Management ────────────────────────────────────────────────
 
 RECOMMENDED_MODELS = [
-    {"name": "llama3.2:3b",          "size": "2 GB",  "best_for": "fast tasks, docs, git",        "roles": ["fast"]},
-    {"name": "llama3.2:latest",      "size": "2 GB",  "best_for": "general purpose",              "roles": ["planner","coder","reviewer","fast"]},
-    {"name": "llama3.1:8b",          "size": "4.7 GB","best_for": "balanced quality + speed",     "roles": ["planner","coder"]},
-    {"name": "qwen2.5:7b",           "size": "4.7 GB","best_for": "planning & architecture",      "roles": ["planner"]},
-    {"name": "qwen2.5-coder:7b",     "size": "4.7 GB","best_for": "code generation",              "roles": ["coder"]},
-    {"name": "qwen2.5-coder:14b",    "size": "9 GB",  "best_for": "advanced code generation",     "roles": ["coder"]},
-    {"name": "deepseek-coder-v2:16b","size": "9 GB",  "best_for": "best code generation",         "roles": ["coder","reviewer"]},
-    {"name": "codellama:13b",        "size": "7.4 GB","best_for": "code review & debugging",      "roles": ["reviewer"]},
-    {"name": "mistral:7b",           "size": "4.1 GB","best_for": "balanced reasoning",           "roles": ["planner","reviewer"]},
-    {"name": "gemma2:9b",            "size": "5.5 GB","best_for": "reasoning & planning",         "roles": ["planner"]},
-    {"name": "phi4:14b",             "size": "9 GB",  "best_for": "coding + reasoning",           "roles": ["coder","reviewer"]},
-    {"name": "llama3.3:70b",         "size": "43 GB", "best_for": "best overall quality",         "roles": ["planner","coder","reviewer"]},
+    # ── Fast / General ──────────────────────────────────────────────────────
+    {"name": "llama3.2:latest",        "size": "2 GB",  "tag": "⚡ Fast",     "best_for": "general purpose — good starting point",            "roles": ["fast","planner"]},
+    {"name": "llama3.1:8b",            "size": "4.7 GB","tag": "⚖ Balanced", "best_for": "balanced quality + speed for all roles",           "roles": ["planner","coder","fast"]},
+    {"name": "mistral:7b",             "size": "4.1 GB","tag": "⚖ Balanced", "best_for": "reasoning, planning, architecture",                "roles": ["planner","reviewer"]},
+    {"name": "gemma2:9b",              "size": "5.5 GB","tag": "⚖ Balanced", "best_for": "strong reasoning and planning",                    "roles": ["planner"]},
+    # ── Coder (recommended for backend/frontend/database agents) ────────────
+    {"name": "qwen2.5-coder:7b",       "size": "4.7 GB","tag": "💻 Coder ★", "best_for": "✅ Best coder for 4-8 GB VRAM — highly recommended","roles": ["coder","reviewer"]},
+    {"name": "qwen2.5-coder:14b",      "size": "9 GB",  "tag": "💻 Coder ★★","best_for": "✅ Best coder for 8-12 GB VRAM — excellent quality", "roles": ["coder","reviewer"]},
+    {"name": "qwen2.5:7b",             "size": "4.7 GB","tag": "🧠 Planner", "best_for": "excellent for architecture planning and reasoning", "roles": ["planner"]},
+    {"name": "deepseek-coder-v2:16b",  "size": "9 GB",  "tag": "💻 Coder ★★","best_for": "top-tier code generation (16b, needs 10+ GB VRAM)","roles": ["coder","reviewer"]},
+    {"name": "codellama:13b",          "size": "7.4 GB","tag": "🔍 Reviewer", "best_for": "code review, debugging, error analysis",           "roles": ["reviewer"]},
+    {"name": "phi4:14b",               "size": "9 GB",  "tag": "💻 Coder",   "best_for": "Microsoft Phi-4 — strong coder + reasoning",       "roles": ["coder","reviewer"]},
+    # ── Large / Best quality ─────────────────────────────────────────────────
+    {"name": "qwen2.5-coder:32b",      "size": "20 GB", "tag": "💻 Coder ★★★","best_for": "best open-source coder — needs 20+ GB VRAM",      "roles": ["coder","reviewer","planner"]},
+    {"name": "llama3.3:70b",           "size": "43 GB", "tag": "🏆 Best",    "best_for": "best overall — needs 40+ GB VRAM or CPU offload",  "roles": ["planner","coder","reviewer"]},
 ]
 
 
@@ -258,6 +261,41 @@ async def update_model_config(body: dict):
             _cfg["ollama"]["models"][role] = model
             ollama.MODELS[role] = model
     return {"updated": {k: v for k, v in body.items() if k in allowed}, "current": ollama.MODELS}
+
+
+# ── About ────────────────────────────────────────────────────────────────────
+
+@app.get("/about")
+async def about():
+    return {
+        "name": "AutoForge AI",
+        "version": "1.0.0",
+        "description": "Autonomous local AI software engineer — multi-agent code generation powered by Ollama",
+        "author": {
+            "name": "Ali Badloo",
+            "github": "https://github.com/alibadlu2020",
+            "instagram": "https://instagram.com/alibadlu2020",
+            "email": "alibadlu13@gmail.com",
+        },
+        "agents": [
+            {"name": "architect",     "model_role": "planner",  "description": "Designs architecture & creates project plan"},
+            {"name": "backend",       "model_role": "coder",    "description": "Generates backend code (Python, C#, TypeScript…)"},
+            {"name": "frontend",      "model_role": "coder",    "description": "Generates React/Vue/Next.js frontend"},
+            {"name": "database",      "model_role": "coder",    "description": "Creates SQL schema, migrations, seed data"},
+            {"name": "debug",         "model_role": "reviewer", "description": "Builds project, parses errors, auto-fixes (up to 5x)"},
+            {"name": "documentation", "model_role": "fast",     "description": "Generates README, ARCHITECTURE.md, API docs"},
+            {"name": "git",           "model_role": "fast",     "description": "Initializes repo, .gitignore, commits"},
+        ],
+        "recommended_coder_models": [
+            {"model": "qwen2.5-coder:7b",  "vram": "4-8 GB",  "quality": "★★★"},
+            {"model": "qwen2.5-coder:14b", "vram": "8-12 GB", "quality": "★★★★"},
+            {"model": "qwen2.5-coder:32b", "vram": "20+ GB",  "quality": "★★★★★"},
+        ],
+        "links": {
+            "github_repo": "https://github.com/alibadlu2020/AutoForgeAI",
+            "docs": "http://localhost:8003/docs",
+        }
+    }
 
 
 # ── Evolution config ─────────────────────────────────────────────────────────
