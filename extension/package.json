@@ -1,0 +1,99 @@
+{
+  "name": "autoforge-ai",
+  "displayName": "AutoForge AI",
+  "description": "Autonomous local AI software engineer — multi-agent code generation powered by Ollama",
+  "version": "1.0.0",
+  "publisher": "Alibadloo",
+  "icon": "media/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Alibadloo/AutoForgeAI"
+  },
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": ["AI", "Other"],
+  "keywords": ["AI", "code generation", "Ollama", "LLM", "autonomous", "multi-agent"],
+  "activationEvents": ["onStartupFinished"],
+  "main": "./dist/extension.js",
+  "contributes": {
+    "commands": [
+      {
+        "command": "autoforge.openPanel",
+        "title": "AutoForge AI: Open Panel",
+        "icon": "$(robot)"
+      },
+      {
+        "command": "autoforge.forgeProject",
+        "title": "AutoForge AI: Forge New Project"
+      },
+      {
+        "command": "autoforge.debugBuild",
+        "title": "AutoForge AI: Debug & Fix Build Errors"
+      },
+      {
+        "command": "autoforge.runEvolution",
+        "title": "AutoForge AI: Run Evolution Analysis"
+      },
+      {
+        "command": "autoforge.checkStatus",
+        "title": "AutoForge AI: Check Backend Status"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "autoforge",
+          "title": "AutoForge AI",
+          "icon": "media/sidebar-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "autoforge": [
+        {
+          "type": "webview",
+          "id": "autoforge.mainView",
+          "name": "AutoForge AI"
+        }
+      ]
+    },
+    "menus": {
+      "editor/title": [
+        {
+          "command": "autoforge.openPanel",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "AutoForge AI",
+      "properties": {
+        "autoforge.backendUrl": {
+          "type": "string",
+          "default": "http://localhost:8003",
+          "description": "AutoForge AI backend URL"
+        },
+        "autoforge.defaultRules": {
+          "type": "array",
+          "default": ["clean-architecture", "async-all", "solid"],
+          "description": "Default coding rules to apply to all generated projects"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run compile",
+    "compile": "tsc -p ./",
+    "watch": "tsc -watch -p ./",
+    "lint": "eslint src --ext ts"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "@typescript-eslint/eslint-plugin": "^7.0.0",
+    "@typescript-eslint/parser": "^7.0.0",
+    "eslint": "^8.56.0"
+  }
+}

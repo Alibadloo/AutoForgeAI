@@ -1,0 +1,46 @@
+ollama:
+  base_url: "http://localhost:11434"
+  timeout: 180
+  models:
+    planner:      "qwen2.5:7b"       # fast, for planning & routing
+    coder:        "deepseek-coder-v2:16b"  # strong, for code generation
+    reviewer:     "codellama:13b"    # for review & debug
+    fast:         "llama3.2:3b"      # for quick tasks (git, docs)
+  fallback: "llama3.2"              # used if specific model missing
+
+agents:
+  max_debug_iterations: 5
+  max_files_per_pass: 10
+  code_block_delimiter: "```"
+
+terminal:
+  timeout_seconds: 120
+  allowed_prefixes:
+    - "dotnet"
+    - "npm"
+    - "npx"
+    - "git"
+    - "docker"
+    - "docker-compose"
+    - "python"
+    - "pip"
+    - "mkdir"
+    - "cd"
+
+evolution:
+  enabled: false
+  schedule_cron: "0 2 * * *"   # 2:00 AM every day
+  branch_prefix: "autoforge/evolution-"
+  checks:
+    - duplicate_code
+    - missing_async
+    - outdated_packages
+    - solid_violations
+    - slow_queries
+
+server:
+  host: "127.0.0.1"
+  port: 8003
+  cors_origins:
+    - "vscode-webview://*"
+    - "http://localhost:*"
