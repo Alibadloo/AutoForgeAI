@@ -5,7 +5,7 @@ import yaml
 from pathlib import Path
 from typing import AsyncIterator
 
-_cfg = yaml.safe_load(open(Path(__file__).parents[3] / "config.yaml"))
+_cfg = yaml.safe_load(open(Path(__file__).parents[2] / "config.yaml"))
 _OLLAMA = _cfg["ollama"]
 BASE_URL = _OLLAMA["base_url"]
 TIMEOUT = _OLLAMA["timeout"]
@@ -20,7 +20,12 @@ def model_for(role: str) -> str:
 async def generate(prompt: str, role: str = "coder", system: str = "") -> str:
     """Single-shot generation — returns full response text."""
     model = model_for(role)
-    payload: dict = {"model": model, "prompt": prompt, "stream": False}
+    payload: dict = {
+        "model": model,
+        "prompt": prompt,
+        "stream": False,
+        "options": {"num_predict": -1, "temperature": 0.2},
+    }
     if system:
         payload["system"] = system
 
@@ -30,7 +35,6 @@ async def generate(prompt: str, role: str = "coder", system: str = "") -> str:
             r.raise_for_status()
             return r.json().get("response", "")
         except Exception as e:
-            # Retry with fallback model
             if model != FALLBACK:
                 payload["model"] = FALLBACK
                 r = await client.post(f"{BASE_URL}/api/generate", json=payload)
@@ -79,15 +83,43 @@ async def is_online() -> bool:
         return False
 
 
-def extract_json(text: str) -> dict | None:
-    """Extract first JSON object from LLM response."""
-    start = text.find("{")
-    end = text.rfind("}") + 1
-    if start >= 0 and end > start:
-        try:
-            return json.loads(text[start:end])
-        except Exception:
-            pass
+def extract_json(text: str) -> dict | list | None:
+    """
+    Extract JSON from LLM response.
+    Handles: plain JSON, ```json blocks, truncated JSON.
+    """
+    # 1. Try stripping markdown code block first
+    stripped = text.strip()
+    for fence in ("```json", "```JSON", "```"):
+        if stripped.startswith(fence):
+            inner = stripped[len(fence):]
+            end_fence = inner.rfind("```")
+            if end_fence != -1:
+                inner = inner[:end_fence]
+            stripped = inner.strip()
+            break
+
+    # 2. Find the outermost { ... }
+    candidates = [stripped, text]
+    for candidate in candidates:
+        start = candidate.find("{")
+        if start < 0:
+            start = candidate.find("[")
+        if start < 0:
+            continue
+
+        # Walk from the end to find a valid closing bracket
+        opener = candidate[start]
+        closer = "}" if opener == "{" else "]"
+        for end in range(len(candidate), start, -1):
+            chunk = candidate[start:end]
+            if closer not in chunk:
+                continue
+            try:
+                return json.loads(chunk)
+            except json.JSONDecodeError:
+                continue
+
     return None
 
 

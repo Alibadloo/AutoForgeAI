@@ -5,7 +5,7 @@ from pathlib import Path
 from datetime import datetime
 from . import ollama, memory, context, terminal
 
-_cfg = yaml.safe_load(open(Path(__file__).parents[3] / "config.yaml"))
+_cfg = yaml.safe_load(open(Path(__file__).parents[2] / "config.yaml"))
 _EVO_CFG = _cfg.get("evolution", {})
 
 CHECKS = _EVO_CFG.get("checks", [

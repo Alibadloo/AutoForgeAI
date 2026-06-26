@@ -2,11 +2,11 @@ ollama:
   base_url: "http://localhost:11434"
   timeout: 180
   models:
-    planner:      "qwen2.5:7b"       # fast, for planning & routing
-    coder:        "deepseek-coder-v2:16b"  # strong, for code generation
-    reviewer:     "codellama:13b"    # for review & debug
-    fast:         "llama3.2:3b"      # for quick tasks (git, docs)
-  fallback: "llama3.2"              # used if specific model missing
+    planner:      "llama3.2:latest"
+    coder:        "llama3.2:latest"
+    reviewer:     "llama3.2:latest"
+    fast:         "llama3.2:latest"
+  fallback: "llama3.2:latest"
 
 agents:
   max_debug_iterations: 5

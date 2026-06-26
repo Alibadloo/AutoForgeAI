@@ -70,6 +70,35 @@ export class BackendClient extends EventEmitter {
     });
   }
 
+  async delete<T>(path: string, body?: unknown): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const url = new URL(this.baseUrl + path);
+      const payload = body ? JSON.stringify(body) : "";
+      const options = {
+        hostname: url.hostname,
+        port: url.port || (url.protocol === "https:" ? 443 : 80),
+        path: url.pathname + url.search,
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          "Content-Length": Buffer.byteLength(payload),
+        },
+      };
+      const mod = url.protocol === "https:" ? https : http;
+      const req = mod.request(options, (res) => {
+        let data = "";
+        res.on("data", (chunk: Buffer) => (data += chunk.toString()));
+        res.on("end", () => {
+          try { resolve(JSON.parse(data || "{}")); }
+          catch { resolve({} as T); }
+        });
+      });
+      req.on("error", reject);
+      if (payload) req.write(payload);
+      req.end();
+    });
+  }
+
   /** Stream SSE events from the backend. Returns a cleanup function. */
   streamSSE(
     path: string,

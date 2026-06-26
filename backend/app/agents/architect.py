@@ -16,54 +16,37 @@ class ArchitectAgent(BaseAgent):
 
         yield self._emit(EventType.AGENT_START, "Analyzing project requirements…")
 
-        rules_text = rules.format_rules_for_prompt(extra_rules) if extra_rules else ""
+        system = (
+            "You are a software architect. "
+            "Output ONLY valid JSON — no explanation, no markdown, no extra text. "
+            "Start your response with { and end with }."
+        )
 
-        system = """You are a senior software architect.
-Analyze the project request and produce a complete architecture plan in JSON.
-Be specific, practical, and production-ready."""
+        tech_hint = tech_stack.get("custom", "") or ", ".join(
+            f"{k}: {v}" for k, v in tech_stack.items() if v
+        ) or "choose best fit"
 
-        prompt = f"""Analyze this project and design the architecture:
+        prompt = f"""Design architecture for this project. Output ONLY JSON.
 
-REQUEST: {prompt_text}
+PROJECT: {prompt_text}
+TECH: {tech_hint}
 
-PREFERRED TECH STACK: {tech_stack or 'Choose the best fit'}
-
-{rules_text}
-
-Return a JSON with this EXACT structure (no extra text outside JSON):
+JSON structure (fill in values, keep all keys):
 {{
   "project_name": "PascalCaseName",
   "description": "one sentence",
-  "tech_stack": {{
-    "backend": "e.g. C# .NET 8 Web API",
-    "frontend": "e.g. React 18 + TypeScript + Vite",
-    "database": "e.g. PostgreSQL 16 + EF Core",
-    "auth": "e.g. JWT Bearer",
-    "other": []
-  }},
-  "architecture_pattern": "e.g. Clean Architecture",
-  "folder_structure": [
-    "src/Domain/",
-    "src/Application/",
-    "src/Infrastructure/",
-    "src/API/"
-  ],
-  "database_entities": [
-    {{"name": "EntityName", "fields": ["Id:int", "Name:string", "CreatedAt:DateTime"]}}
-  ],
-  "api_endpoints": [
-    {{"method": "GET", "path": "/api/items", "description": "List all items"}}
-  ],
+  "tech_stack": {{"backend": "...", "frontend": "...", "database": "...", "auth": "..."}},
+  "architecture_pattern": "Clean Architecture",
+  "folder_structure": ["src/", "tests/"],
+  "database_entities": [{{"name": "Entity", "fields": ["Id:int", "Name:string"]}}],
+  "api_endpoints": [{{"method": "GET", "path": "/api/items", "description": "list items"}}],
   "agent_tasks": {{
-    "database": ["Create PostgreSQL schema", "Write EF Core migrations", "Add seed data"],
-    "backend": ["Create Domain entities", "Create Repository interfaces", "Create API controllers"],
-    "frontend": ["Create React app with Vite", "Create pages: Home, List, Detail", "Add Axios service"],
-    "git": ["Initialize repository", "Create .gitignore", "Initial commit"]
+    "database": ["create schema"],
+    "backend": ["create API"],
+    "frontend": ["create UI"],
+    "git": ["init repo"]
   }},
-  "decisions": [
-    "Using Repository Pattern for data access abstraction",
-    "Clean Architecture to keep domain logic independent"
-  ],
+  "decisions": ["reason 1"],
   "rules": {extra_rules or []}
 }}"""
 
@@ -73,11 +56,24 @@ Return a JSON with this EXACT structure (no extra text outside JSON):
         plan = ollama.extract_json(response)
 
         if not plan:
-            yield self._emit(EventType.AGENT_ERROR, "Could not parse architecture JSON from Ollama response")
-            yield self._emit(EventType.AGENT_ERROR, f"Raw response: {response[:300]}")
-            return
+            # Fallback: build a minimal plan from the prompt
+            yield self._log("JSON parse failed — building minimal plan from prompt…")
+            plan = _build_fallback_plan(prompt_text, tech_stack, extra_rules)
+            yield self._log(f"Using fallback plan: {plan['project_name']}")
 
-        # Persist to project memory
+        # Ensure required keys exist
+        plan.setdefault("agent_tasks", {
+            "database": ["Create database schema"],
+            "backend": ["Create API project"],
+            "frontend": ["Create frontend project"],
+            "git": ["Initialize repository"],
+        })
+        plan.setdefault("database_entities", [])
+        plan.setdefault("api_endpoints", [])
+        plan.setdefault("folder_structure", ["src/"])
+        plan.setdefault("decisions", [])
+        plan.setdefault("rules", extra_rules)
+
         await memory.save(self.project_path, {
             "name": plan.get("project_name", "Project"),
             "description": plan.get("description", ""),
@@ -91,6 +87,33 @@ Return a JSON with this EXACT structure (no extra text outside JSON):
 
         yield self._emit(
             EventType.AGENT_DONE,
-            f"Architecture designed: {plan.get('project_name')} ({plan.get('architecture_pattern')})",
+            f"Architecture: {plan.get('project_name')} ({plan.get('architecture_pattern', 'N/A')})",
             {"plan": plan}
         )
+
+
+def _build_fallback_plan(prompt: str, tech_stack: dict, rules: list) -> dict:
+    """Minimal plan used when Ollama returns unparseable JSON."""
+    name = "".join(w.capitalize() for w in prompt.split()[:3]) or "MyProject"
+    return {
+        "project_name": name,
+        "description": prompt[:100],
+        "tech_stack": tech_stack or {
+            "backend": "C# .NET 8 Web API",
+            "frontend": "React + TypeScript",
+            "database": "SQLite + EF Core",
+            "auth": "JWT",
+        },
+        "architecture_pattern": "Clean Architecture",
+        "folder_structure": ["src/Domain/", "src/Application/", "src/Infrastructure/", "src/API/"],
+        "database_entities": [],
+        "api_endpoints": [],
+        "agent_tasks": {
+            "database": ["Create database schema and seed data"],
+            "backend": ["Create Domain entities", "Create API controllers"],
+            "frontend": ["Create React app with Vite and TypeScript"],
+            "git": ["Initialize repository", "Initial commit"],
+        },
+        "decisions": ["Fallback plan — Ollama did not return parseable JSON"],
+        "rules": rules,
+    }

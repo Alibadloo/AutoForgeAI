@@ -66,6 +66,18 @@ export class AgentPanel {
         this._cancelStream?.();
         this._post("streamEnd", {});
         break;
+      case "loadModels":
+        await this._loadModels();
+        break;
+      case "pullModel":
+        await this._pullModel((message.payload as Record<string, unknown>).name as string);
+        break;
+      case "deleteModel":
+        await this._deleteModel((message.payload as Record<string, unknown>).name as string);
+        break;
+      case "updateModelConfig":
+        await this._updateModelConfig(message.payload as Record<string, string>);
+        break;
     }
   }
 
@@ -126,6 +138,52 @@ export class AgentPanel {
   private async _checkStatus(): Promise<void> {
     const health = await this._client.checkHealth();
     this._post("status", health);
+  }
+
+  private async _loadModels(): Promise<void> {
+    try {
+      const data = await this._client.get<{ installed: unknown[]; recommended: unknown[] }>("/models");
+      const cfg = await this._client.get<{ models: Record<string, string> }>("/models/config");
+      this._post("modelsData", { ...data, config: cfg.models });
+    } catch (e) {
+      this._post("error", { message: String(e) });
+    }
+  }
+
+  private async _pullModel(name: string): Promise<void> {
+    this._client.streamSSE(
+      "/models/pull",
+      { name },
+      (event) => {
+        const raw = event as unknown as Record<string, unknown>;
+        this._post("pullProgress", {
+          name,
+          status: raw["status"] ?? "pulling",
+          completed: raw["completed"] ?? 0,
+          total: raw["total"] ?? 0,
+        });
+      },
+      () => this._post("pullProgress", { name, status: "done", completed: 1, total: 1 }),
+      (err) => this._post("error", { message: err.message })
+    );
+  }
+
+  private async _deleteModel(name: string): Promise<void> {
+    try {
+      await this._client.delete(`/models/${encodeURIComponent(name)}`);
+      await this._loadModels();
+    } catch (e) {
+      this._post("error", { message: String(e) });
+    }
+  }
+
+  private async _updateModelConfig(config: Record<string, string>): Promise<void> {
+    try {
+      const result = await this._client.post<{ current: Record<string, string> }>("/models/config", config);
+      this._post("modelConfigUpdated", result.current);
+    } catch (e) {
+      this._post("error", { message: String(e) });
+    }
   }
 
   private _post(command: string, data: unknown): void {
@@ -194,6 +252,20 @@ export class AgentPanel {
   .finding-type { font-size: 11px; color: #8b949e; font-weight: 600; text-transform: uppercase; }
   .finding-issue { color: #e6edf3; font-size: 13px; margin: 4px 0; }
   .finding-fix { color: #3fb950; font-size: 12px; }
+  .model-card { background: #161b22; border: 1px solid #30363d; border-radius: 8px; padding: 12px; display: flex; align-items: center; gap: 10px; }
+  .model-card.installed { border-color: #238636; }
+  .model-info { flex: 1; }
+  .model-name { font-size: 13px; font-weight: 600; color: #e6edf3; font-family: monospace; }
+  .model-meta { font-size: 11px; color: #8b949e; margin-top: 2px; }
+  .model-roles { display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px; }
+  .role-tag { background: #1f2937; border: 1px solid #374151; color: #79c0ff; font-size: 10px; padding: 1px 6px; border-radius: 10px; }
+  .model-actions { display: flex; gap: 6px; align-items: center; }
+  .btn-sm { padding: 4px 10px; font-size: 11px; }
+  .install-badge { background: #238636; color: #fff; font-size: 10px; padding: 2px 8px; border-radius: 10px; }
+  .pull-progress { font-size: 11px; color: #ffa657; margin-top: 4px; }
+  .role-config { display: grid; grid-template-columns: 80px 1fr; gap: 8px; align-items: center; }
+  .role-label { font-size: 12px; color: #8b949e; font-weight: 600; text-transform: uppercase; }
+  .section-title { font-size: 13px; font-weight: 700; color: #ffa657; border-bottom: 1px solid #30363d; padding-bottom: 6px; }
 </style>
 </head>
 <body>
@@ -208,6 +280,7 @@ export class AgentPanel {
   <div class="tab active" onclick="switchTab('forge')">🔨 Forge</div>
   <div class="tab" onclick="switchTab('debug')">🐛 Debug</div>
   <div class="tab" onclick="switchTab('evolve')">🧬 Evolution</div>
+  <div class="tab" onclick="switchTab('models')">🤖 Models</div>
   <div class="tab" onclick="switchTab('log')">📋 Log</div>
 </div>
 
@@ -281,6 +354,32 @@ export class AgentPanel {
   <div id="masterLog" class="log-container" style="max-height:500px"></div>
 </div>
 
+<!-- MODELS TAB -->
+<div class="panel" id="panel-models">
+  <div class="section-title">Role Configuration</div>
+  <p style="color:#8b949e;font-size:12px">Assign which Ollama model is used for each agent role:</p>
+  <div class="role-config" id="roleConfig">
+    <span class="role-label">Planner</span>
+    <select id="roleSelect-planner" onchange="updateRole('planner',this.value)"><option>loading…</option></select>
+    <span class="role-label">Coder</span>
+    <select id="roleSelect-coder" onchange="updateRole('coder',this.value)"><option>loading…</option></select>
+    <span class="role-label">Reviewer</span>
+    <select id="roleSelect-reviewer" onchange="updateRole('reviewer',this.value)"><option>loading…</option></select>
+    <span class="role-label">Fast</span>
+    <select id="roleSelect-fast" onchange="updateRole('fast',this.value)"><option>loading…</option></select>
+  </div>
+  <div class="btn-row" style="margin-top:4px">
+    <button class="btn btn-secondary btn-sm" onclick="loadModels()">🔄 Refresh</button>
+  </div>
+
+  <div class="section-title" style="margin-top:8px">Installed Models</div>
+  <div id="installedModels" style="display:flex;flex-direction:column;gap:6px"></div>
+
+  <div class="section-title" style="margin-top:8px">Recommended Models</div>
+  <p style="color:#8b949e;font-size:12px">Click Install to download via Ollama:</p>
+  <div id="recommendedModels" style="display:flex;flex-direction:column;gap:6px"></div>
+</div>
+
 <div class="status-bar">
   <span class="status-dot" id="statusDot" style="background:#8b949e"></span>
   <span id="statusText">Connecting…</span>
@@ -290,12 +389,16 @@ export class AgentPanel {
 const vscode = acquireVsCodeApi();
 let activeLog = document.getElementById('forgeLog');
 
+const TABS = ['forge','debug','evolve','models','log'];
+
 function switchTab(tab) {
-  document.querySelectorAll('.tab').forEach((t,i) => t.classList.remove('active'));
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
   document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
-  document.querySelector(\`.tab:nth-child(\${['forge','debug','evolve','log'].indexOf(tab)+1})\`).classList.add('active');
+  const idx = TABS.indexOf(tab);
+  if (idx >= 0) document.querySelectorAll('.tab')[idx].classList.add('active');
   document.getElementById('panel-' + tab).classList.add('active');
   activeLog = document.getElementById(tab + 'Log') || document.getElementById('masterLog');
+  if (tab === 'models') loadModels();
 }
 
 function runForge() {
@@ -332,6 +435,95 @@ function runEvolve() {
 
 function cancel() { vscode.postMessage({ command: 'cancel' }); }
 function checkStatus() { vscode.postMessage({ command: 'checkStatus' }); }
+
+// ── Model management ─────────────────────────────────────────────────────────
+let _installedModels = [];
+let _currentConfig = {};
+
+function loadModels() { vscode.postMessage({ command: 'loadModels' }); }
+
+function updateRole(role, model) {
+  vscode.postMessage({ command: 'updateModelConfig', payload: { [role]: model } });
+}
+
+function pullModel(name, btnEl) {
+  btnEl.textContent = 'Pulling…';
+  btnEl.disabled = true;
+  vscode.postMessage({ command: 'pullModel', payload: { name } });
+}
+
+function deleteModel(name) {
+  if (!confirm('Delete model ' + name + '?')) return;
+  vscode.postMessage({ command: 'deleteModel', payload: { name } });
+}
+
+function renderModelTab(data) {
+  _installedModels = (data.installed || []).map(m => m.name || m);
+  _currentConfig = data.config || {};
+  const recommended = data.recommended || [];
+
+  // Update role dropdowns
+  const roles = ['planner','coder','reviewer','fast'];
+  roles.forEach(role => {
+    const sel = document.getElementById('roleSelect-' + role);
+    if (!sel) return;
+    sel.innerHTML = _installedModels.map(m =>
+      \`<option value="\${m}" \${_currentConfig[role]===m?'selected':''}>\${m}</option>\`
+    ).join('') || '<option>No models installed</option>';
+  });
+
+  // Installed models
+  const instEl = document.getElementById('installedModels');
+  instEl.innerHTML = _installedModels.length ? _installedModels.map(m => \`
+    <div class="model-card installed">
+      <div class="model-info">
+        <div class="model-name">\${escHtml(m)}</div>
+        <div class="model-meta">✅ Installed</div>
+      </div>
+      <div class="model-actions">
+        <button class="btn btn-danger btn-sm" onclick="deleteModel('\${escHtml(m)}')">🗑 Delete</button>
+      </div>
+    </div>
+  \`).join('') : '<p style="color:#8b949e;font-size:12px">No models installed</p>';
+
+  // Recommended models
+  const recEl = document.getElementById('recommendedModels');
+  recEl.innerHTML = recommended.map(r => {
+    const installed = _installedModels.includes(r.name);
+    return \`
+    <div class="model-card \${installed ? 'installed' : ''}" id="mc-\${r.name.replace(/[:.]/g,'_')}">
+      <div class="model-info">
+        <div class="model-name">\${escHtml(r.name)}</div>
+        <div class="model-meta">\${r.size} · \${escHtml(r.best_for)}</div>
+        <div class="model-roles">\${(r.roles||[]).map(role => \`<span class="role-tag">\${role}</span>\`).join('')}</div>
+        <div class="pull-progress" id="pp-\${r.name.replace(/[:.]/g,'_')}"></div>
+      </div>
+      <div class="model-actions">
+        \${installed
+          ? '<span class="install-badge">✓ Installed</span>'
+          : \`<button class="btn btn-primary btn-sm" id="btn-\${r.name.replace(/[:.]/g,'_')}" onclick="pullModel('\${escHtml(r.name)}',this)">⬇ Install</button>\`
+        }
+      </div>
+    </div>\`;
+  }).join('');
+}
+
+function handlePullProgress(name, status, completed, total) {
+  const key = name.replace(/[:.]/g,'_');
+  const pp = document.getElementById('pp-' + key);
+  const btn = document.getElementById('btn-' + key);
+  if (!pp) return;
+  if (status === 'success' || status === 'done') {
+    pp.textContent = '✅ Installed!';
+    if (btn) { btn.textContent = '✓'; btn.disabled = true; }
+    setTimeout(() => loadModels(), 1000);
+  } else if (total > 0) {
+    const pct = Math.round((completed / total) * 100);
+    pp.textContent = \`⬇ \${status} \${pct}%\`;
+  } else {
+    pp.textContent = \`⬇ \${status}…\`;
+  }
+}
 
 function clearEl(el) { if (el) el.innerHTML = ''; }
 function clearLog() {
@@ -410,9 +602,16 @@ window.addEventListener('message', e => {
     setStatus('err', 'Error');
   } else if (command === 'status') {
     const ok = data.ollama_online;
-    setStatus(ok ? 'ok' : 'err', ok ? \`Ollama online · \${data.models.length} models\` : 'Ollama offline');
+    const count = (data.models || []).length;
+    setStatus(ok ? 'ok' : 'err', ok ? \`Ollama online · \${count} model\${count!==1?'s':''}\` : 'Ollama offline');
     document.getElementById('statusBadge').textContent = data.status;
     document.getElementById('statusBadge').style.background = ok ? '#238636' : '#b62324';
+  } else if (command === 'modelsData') {
+    renderModelTab(data);
+  } else if (command === 'pullProgress') {
+    handlePullProgress(data.name, data.status, data.completed || 0, data.total || 0);
+  } else if (command === 'modelConfigUpdated') {
+    _currentConfig = data;
   }
 });
 

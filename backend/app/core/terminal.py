@@ -5,7 +5,7 @@ import yaml
 from pathlib import Path
 from dataclasses import dataclass
 
-_cfg = yaml.safe_load(open(Path(__file__).parents[3] / "config.yaml"))
+_cfg = yaml.safe_load(open(Path(__file__).parents[2] / "config.yaml"))
 _TERMINAL_CFG = _cfg.get("terminal", {})
 ALLOWED_PREFIXES: list[str] = _TERMINAL_CFG.get("allowed_prefixes", [])
 TIMEOUT: int = _TERMINAL_CFG.get("timeout_seconds", 120)

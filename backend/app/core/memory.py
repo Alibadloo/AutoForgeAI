@@ -4,17 +4,17 @@ import json
 from datetime import datetime
 from pathlib import Path
 
-DB_PATH = Path(__file__).parents[3] / "autoforge_memory.db"
+DB_PATH = Path(__file__).parents[2] / "autoforge_memory.db"
 
 
-async def _db() -> aiosqlite.Connection:
-    conn = await aiosqlite.connect(DB_PATH)
-    conn.row_factory = aiosqlite.Row
-    return conn
+def _db() -> aiosqlite.Connection:
+    """Return an aiosqlite async context manager."""
+    return aiosqlite.connect(DB_PATH)
 
 
 async def init_db() -> None:
-    async with await _db() as db:
+    async with _db() as db:
+        db.row_factory = aiosqlite.Row
         await db.executescript("""
             CREATE TABLE IF NOT EXISTS projects (
                 path        TEXT PRIMARY KEY,
@@ -42,7 +42,8 @@ async def init_db() -> None:
 
 
 async def load(project_path: str) -> dict:
-    async with await _db() as db:
+    async with _db() as db:
+        db.row_factory = aiosqlite.Row
         cur = await db.execute("SELECT * FROM projects WHERE path=?", (project_path,))
         row = await cur.fetchone()
         if not row:
@@ -66,7 +67,7 @@ async def save(project_path: str, data: dict) -> None:
     now = datetime.utcnow().isoformat()
     existing = await load(project_path)
 
-    async with await _db() as db:
+    async with _db() as db:
         if not existing:
             await db.execute("""
                 INSERT INTO projects
@@ -132,7 +133,7 @@ async def add_rule(project_path: str, rule: str) -> None:
 
 
 async def log_event(project_path: str, agent: str, event_type: str, message: str) -> None:
-    async with await _db() as db:
+    async with _db() as db:
         await db.execute(
             "INSERT INTO events (project_path, agent, type, message, ts) VALUES (?, ?, ?, ?, ?)",
             (project_path, agent, event_type, message, datetime.utcnow().isoformat())
@@ -141,7 +142,8 @@ async def log_event(project_path: str, agent: str, event_type: str, message: str
 
 
 async def get_events(project_path: str, limit: int = 100) -> list[dict]:
-    async with await _db() as db:
+    async with _db() as db:
+        db.row_factory = aiosqlite.Row
         cur = await db.execute(
             "SELECT * FROM events WHERE project_path=? ORDER BY id DESC LIMIT ?",
             (project_path, limit)

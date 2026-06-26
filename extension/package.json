@@ -4,7 +4,6 @@
   "description": "Autonomous local AI software engineer — multi-agent code generation powered by Ollama",
   "version": "1.0.0",
   "publisher": "Alibadloo",
-  "icon": "media/icon.png",
   "repository": {
     "type": "git",
     "url": "https://github.com/Alibadloo/AutoForgeAI"
